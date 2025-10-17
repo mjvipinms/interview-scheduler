@@ -1,0 +1,58 @@
+package com.ibs.interview_scheduler.controller;
+
+
+import com.ibs.interview_scheduler.context.UserContext;
+import com.ibs.interview_scheduler.dtos.requestDto.InterviewRequestDto;
+import com.ibs.interview_scheduler.dtos.responseDto.InterviewResponseDto;
+import com.ibs.interview_scheduler.service.InterviewService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import static com.ibs.interview_scheduler.utils.RoleValidator.*;
+
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/v1/interviews")
+@RequiredArgsConstructor
+public class InterviewController {
+
+    private final InterviewService interviewService;
+
+    @PostMapping
+    public ResponseEntity<InterviewResponseDto> createInterview(@RequestBody InterviewRequestDto request) {
+        if (!isAuthorized(UserContext.getUserRole(), "HR")) {
+            InterviewResponseDto response = new InterviewResponseDto();
+            response.setAccessStatus("User permission denied");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+        }
+        return ResponseEntity.ok(interviewService.createInterview(request));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<InterviewResponseDto>> getAllInterviews() {
+        return ResponseEntity.ok(interviewService.getAllInterviews());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<InterviewResponseDto> getInterview(@PathVariable Integer interviewId) {
+        return ResponseEntity.ok(interviewService.getInterviewById(interviewId));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<InterviewResponseDto> updateInterview(@PathVariable Integer interviewId, @RequestBody InterviewRequestDto request) {
+        if (!isAuthorized(UserContext.getUserRole(), "HR")) {
+            InterviewResponseDto response = new InterviewResponseDto();
+            response.setAccessStatus("User permission denied");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+        }
+        return ResponseEntity.ok(interviewService.updateInterview(interviewId, request));
+    }
+
+    @DeleteMapping("/{id}")
+    public void deleteInterview(@PathVariable Integer interviewId) {
+        interviewService.deleteInterview(interviewId);
+    }
+}
