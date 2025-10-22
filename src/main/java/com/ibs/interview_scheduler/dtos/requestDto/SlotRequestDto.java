@@ -14,4 +14,5 @@ public class SlotRequestDto {
     private Integer panelistId;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
+    private String status;
 }

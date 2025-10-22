@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 public class SlotResponseDto {
-    private Integer id;
+    private Integer slotId;
     private Integer panelistId;
     private LocalDateTime startTime;
     private LocalDateTime endTime;

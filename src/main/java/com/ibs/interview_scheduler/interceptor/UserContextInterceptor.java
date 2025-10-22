@@ -14,13 +14,10 @@ public class UserContextInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         String userName = request.getHeader("X-User-Name");
         String role = request.getHeader("X-User-Role");
-
         UserContext.setUserName(userName);
         UserContext.setUserRole(role);
-
         return true;
     }
-
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
         UserContext.clear();
