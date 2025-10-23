@@ -2,6 +2,8 @@ package com.ibs.interview_scheduler.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Where;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -10,6 +12,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Where(clause = "is_deleted = false")
 public class Interview {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,6 +28,7 @@ public class Interview {
     private String mode;
     private String result;
     private String feedback;
+    private Boolean isDeleted;
     private String createdBy;
     private String updatedBy;
     @Column(updatable = false)

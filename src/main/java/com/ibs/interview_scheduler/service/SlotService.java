@@ -36,6 +36,7 @@ public class SlotService {
             }
             Slot slot = Slot.builder()
                     .panelistId(request.getPanelistId())
+                    .isDeleted(false)
                     .startTime(request.getStartTime())
                     .endTime(request.getEndTime())
                     .createdBy(UserContext.getUserName())
@@ -77,7 +78,11 @@ public class SlotService {
 
     public void deleteSlot(Integer slotId) {
         log.info("Deleting slot by id ,{}", slotId);
-        slotRepository.deleteById(slotId);
+        Slot slot = slotRepository.findById(slotId).orElseThrow(() -> new RuntimeException("Slot not found"));
+        slot.setIsDeleted(true);
+        slot.setUpdatedBy(UserContext.getUserName());
+        slot.setUpdatedAt(LocalDateTime.now());
+        slotRepository.save(slot);
     }
 
     private SlotResponseDto toResponse(Slot slot) {

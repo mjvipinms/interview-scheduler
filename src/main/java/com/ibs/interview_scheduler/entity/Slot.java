@@ -2,6 +2,7 @@ package com.ibs.interview_scheduler.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Where;
 
 import java.time.LocalDateTime;
 
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Where(clause = "is_deleted = false")
 public class Slot {
 
     @Id
@@ -22,6 +24,7 @@ public class Slot {
     private LocalDateTime endTime;
     private String status;
     private String graphEventId;
+    private Boolean isDeleted;
     private String createdBy;
     private String updatedBy;
     @Column(name = "created_at", nullable = false)

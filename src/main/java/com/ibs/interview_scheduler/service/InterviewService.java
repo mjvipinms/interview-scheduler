@@ -45,6 +45,7 @@ public class InterviewService {
                     .panelistIds(request.getPanelistIds().stream()
                             .map(String::valueOf)
                             .collect(Collectors.joining(",")))
+                    .isDeleted(false)
                     .startTime(request.getStartTime())
                     .endTime(request.getEndTime())
                     .createdAt(LocalDateTime.now())
@@ -118,9 +119,11 @@ public class InterviewService {
 
     public InterviewResponseDto getInterviewById(Integer interviewId) {
         log.info("Fetching interview by interviewId {}", interviewId);
+        List<UserResponseDTO> userList = userClient.getAllUsers();
+        Map<Integer, String> candidateNamesMap = userList.stream().collect(Collectors.toMap(UserResponseDTO::getUserId, UserResponseDTO::getFullName));
         Interview interview = interviewRepository.findById(interviewId)
                 .orElseThrow(() -> new RuntimeException("Interview not found"));
-        return toResponse(interview, null);
+        return toResponse(interview, candidateNamesMap);
     }
 
     public InterviewResponseDto updateInterview(Integer interviewId, InterviewRequestDto request) {
@@ -142,10 +145,14 @@ public class InterviewService {
             throw new RuntimeException(e);
         }
     }
-
     public void deleteInterview(Integer interviewId) {
         log.info("Deleting interview by InterviewId, {}", interviewId);
-        interviewRepository.deleteById(interviewId);
+        Interview interview = interviewRepository.findById(interviewId)
+                .orElseThrow(() -> new RuntimeException("Interview not found"));
+        interview.setIsDeleted(true);
+        interview.setUpdatedAt(LocalDateTime.now());
+        interview.setUpdatedBy(UserContext.getUserName());
+        interviewRepository.save(interview);
     }
 
     private InterviewResponseDto toResponse(Interview interview, Map<Integer, String> userNamesMap) {
