@@ -1,13 +1,17 @@
 package com.ibs.interview_scheduler.service;
 
+import com.ibs.interview_scheduler.cache.UserCacheService;
 import com.ibs.interview_scheduler.context.UserContext;
 import com.ibs.interview_scheduler.dtos.requestDto.InterviewRequestDto;
 import com.ibs.interview_scheduler.dtos.responseDto.*;
 import com.ibs.interview_scheduler.entity.Interview;
+import com.ibs.interview_scheduler.enums.EventType;
 import com.ibs.interview_scheduler.enums.InterviewResult;
 import com.ibs.interview_scheduler.enums.InterviewStatus;
+import com.ibs.interview_scheduler.events.InterviewCreatedEvent;
+import com.ibs.interview_scheduler.events.NotificationEvent;
 import com.ibs.interview_scheduler.exception.CustomException;
-import com.ibs.interview_scheduler.feign.UserClient;
+import com.ibs.interview_scheduler.publisher.InterviewEventPublisher;
 import com.ibs.interview_scheduler.repository.InterviewRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -16,9 +20,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,7 +30,8 @@ public class InterviewService {
 
     private final InterviewRepository interviewRepository;
     private final SlotService slotService;
-    private final UserClient userClient;
+    private final UserCacheService userCacheService;
+    private final InterviewEventPublisher interviewEventPublisher;
 
     @Transactional
     public InterviewResponseDto createInterview(InterviewRequestDto request) {
@@ -61,6 +64,8 @@ public class InterviewService {
                 slotService.updateSlotStatus(slotRes.getSlotId(), "BOOKED");
                 log.info("Updated Slot with ID: {}", request.getSlotId());
             }
+            createNotification(saved, EventType.INTERVIEWCREATED);
+
             return toResponse(saved, null);
 
         } catch (CustomException ce) {
@@ -111,7 +116,7 @@ public class InterviewService {
 
     public List<InterviewResponseDto> getAllInterviews() {
         log.info("Fetching all interviews");
-        List<UserResponseDTO> userList = userClient.getAllUsers();
+        List<UserResponseDTO> userList = userCacheService.getAllUsers();
         Map<Integer, String> candidateNamesMap = userList.stream().collect(Collectors.toMap(UserResponseDTO::getUserId, UserResponseDTO::getFullName));
         return interviewRepository.findAll().stream()
                 .map(i -> toResponse(i, candidateNamesMap)).toList();
@@ -119,7 +124,7 @@ public class InterviewService {
 
     public InterviewResponseDto getInterviewById(Integer interviewId) {
         log.info("Fetching interview by interviewId {}", interviewId);
-        List<UserResponseDTO> userList = userClient.getAllUsers();
+        List<UserResponseDTO> userList = userCacheService.getAllUsers();
         Map<Integer, String> candidateNamesMap = userList.stream().collect(Collectors.toMap(UserResponseDTO::getUserId, UserResponseDTO::getFullName));
         Interview interview = interviewRepository.findById(interviewId)
                 .orElseThrow(() -> new RuntimeException("Interview not found"));
@@ -131,20 +136,22 @@ public class InterviewService {
             Interview interview = interviewRepository.findById(interviewId)
                     .orElseThrow(() -> new RuntimeException("Interview not found"));
             interview.setFeedback(request.getFeedback());
-            if(request.getRating() > 3){
+            if (request.getRating() > 3) {
                 interview.setResult(InterviewResult.SELECTED.toString());
-            }else{
+            } else {
                 interview.setResult(InterviewResult.REJECTED.toString());
             }
             interview.setInterviewStatus(InterviewStatus.COMPLETED.toString());
             interview.setUpdatedAt(LocalDateTime.now());
             interview.setUpdatedBy(UserContext.getUserName());
+            createNotification(interview, EventType.INTERVIEWUPDATED);
             return toResponse(interviewRepository.save(interview), null);
         } catch (RuntimeException e) {
             log.error("Exception occurred at updateInterview, {}", e.getMessage());
             throw new RuntimeException(e);
         }
     }
+
     public void deleteInterview(Integer interviewId) {
         log.info("Deleting interview by InterviewId, {}", interviewId);
         Interview interview = interviewRepository.findById(interviewId)
@@ -154,7 +161,12 @@ public class InterviewService {
         interview.setUpdatedBy(UserContext.getUserName());
         interviewRepository.save(interview);
     }
-
+    /**
+     *
+     * @param interview consume interview object
+     * @param userNamesMap consume map with user id and name
+     * @return interview response dto
+     */
     private InterviewResponseDto toResponse(Interview interview, Map<Integer, String> userNamesMap) {
         InterviewResponseDto res = new InterviewResponseDto();
         res.setInterviewId(interview.getInterviewId());
@@ -188,13 +200,13 @@ public class InterviewService {
 
     /**
      *
-     * @param panelId
+     * @param panelId panel id
      * @return InterviewSummaryResponseDto
      */
     public InterviewSummaryResponseDto getInterviewSummary(String panelId) {
         log.info("Collecting InterviewSummaryResponseDto for panel dashboard");
         try {
-            List<UserResponseDTO> userList = userClient.getAllUsers();
+            List<UserResponseDTO> userList = userCacheService.getAllUsers();
             int totalAssignedThisMonth = interviewRepository.countAssignedInterviewsThisMonth(panelId);
             Map<Integer, String> candidateNameMap = userList.stream()
                     .collect(Collectors.toMap(UserResponseDTO::getUserId, UserResponseDTO::getFullName));
@@ -229,7 +241,7 @@ public class InterviewService {
     public List<InterviewResponseDto> getInterviewsByPanelId(Integer panelId) {
         log.info("Fetching interview by passing panelId");
         try {
-            List<UserResponseDTO> userList = userClient.getAllUsers();
+            List<UserResponseDTO> userList = userCacheService.getAllUsers();
             Map<Integer, String> candidateNamesMap = userList.stream().collect(Collectors.toMap(UserResponseDTO::getUserId, UserResponseDTO::getFullName));
             List<Interview> interviews = interviewRepository.findConfirmedInterviewsByPanelId(String.valueOf(panelId));
             return interviews.stream().map(i -> toResponse(i, candidateNamesMap)).toList();
@@ -247,13 +259,46 @@ public class InterviewService {
     public List<InterviewResponseDto> getInterviewsByCandidateId(Integer candidateId) {
         log.info("Fetching interview by passing candidateId");
         try {
-          //  List<UserResponseDTO> userList = userClient.getAllUsers();
-           // Map<Integer, String> candidateNamesMap = userList.stream().collect(Collectors.toMap(UserResponseDTO::getUserId, UserResponseDTO::getFullName));
+            List<UserResponseDTO> userList = userCacheService.getAllUsers();
+            Map<Integer, String> candidateNamesMap = userList.stream().collect(Collectors.toMap(UserResponseDTO::getUserId, UserResponseDTO::getFullName));
             List<Interview> interviews = interviewRepository.findInterviewsByCandidateId(candidateId);
-            return interviews.stream().map(i -> toResponse(i, null)).toList();
+            return interviews.stream().map(i -> toResponse(i, candidateNamesMap)).toList();
         } catch (Exception e) {
             log.error("Exception occurred in getInterviewsByCandidateId{}", e.getMessage());
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     *  method create and send notifications via kafka to notification service.
+     * @param interviewData interview
+     */
+    private void createNotification(Interview interviewData, EventType eventType) {
+        List<UserResponseDTO> userList = userCacheService.getAllUsers();
+        Map<Integer, String> candidateEmailMap = userList.stream().collect(Collectors.toMap(UserResponseDTO::getUserId,
+                UserResponseDTO::getEmail));
+        String panelEmails = Arrays.stream(interviewData.getPanelistIds().split(","))
+                .map(String::trim)
+                .map(Integer::valueOf)
+                .map(candidateEmailMap::get)
+                .filter(Objects::nonNull)
+                .collect(Collectors.joining(","));
+
+        InterviewCreatedEvent event = InterviewCreatedEvent.builder()
+                .eventId(UUID.randomUUID().toString())
+                .eventTime(LocalDateTime.now())
+                .interviewId(interviewData.getInterviewId())
+                .hrEmail(candidateEmailMap.get(interviewData.getHrId()))
+                .panelEmail(panelEmails)
+                .candidateEmail(candidateEmailMap.get(interviewData.getCandidateId()))
+                .startTime(interviewData.getStartTime())
+                .createdBy(interviewData.getCreatedBy()).build();
+
+        NotificationEvent notificationEvent = NotificationEvent.builder()
+                .eventType(eventType.toString())
+                .payload(event)
+                .build();
+        interviewEventPublisher.publishInterviewCreated(notificationEvent);
+
     }
 }
