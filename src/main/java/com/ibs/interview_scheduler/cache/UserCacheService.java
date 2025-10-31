@@ -5,9 +5,13 @@ import com.ibs.interview_scheduler.feign.UserClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -15,10 +19,37 @@ import java.util.List;
 public class UserCacheService {
 
     private final UserClient userClient;
+    private Map<Integer, String> userIdNameMap = new ConcurrentHashMap<>();
 
     @Cacheable("usersCache")
     public List<UserResponseDTO> getAllUsers() {
         log.info("Fetching users from UserService via Feign...");
         return userClient.getAllUsers();
+    }
+
+    /**
+     *
+     * @return Map<Integer, String> with user id as key and  full name as value
+     */
+    public Map<Integer, String> getUserIdNameMap() {
+        if (userIdNameMap.isEmpty()) {
+            log.info("User map cache is empty, building from getAllUsers()...");
+            updateUserMapCache(getAllUsers());
+        }
+        return userIdNameMap;
+    }
+
+    private void updateUserMapCache(List<UserResponseDTO> users) {
+        userIdNameMap = users.stream()
+                .collect(Collectors.toConcurrentMap(UserResponseDTO::getUserId, UserResponseDTO::getFullName));
+    }
+
+    /**
+     * Periodically refresh cache (optional)
+     */
+    @Scheduled(fixedRate = 600000) // every 10 minutes
+    public void refreshUserCache() {
+        log.info("Refreshing users cache from UserService...");
+        updateUserMapCache(userClient.getAllUsers());
     }
 }

@@ -23,4 +23,5 @@ public class InterviewResponseDto {
     private String accessStatus;
     private String candidateName;
     private List<String> panellistNames;
+    private Boolean isDeleted;
 }

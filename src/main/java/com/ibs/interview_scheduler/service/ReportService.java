@@ -71,7 +71,6 @@ public class ReportService {
             String sql = """
                 SELECT interview_id, candidate_id, hr_id, panelist_ids, start_time, end_time, interview_status, created_at
                 FROM interviews
-                WHERE is_deleted = false
                 """;
 
             if (startDate != null && endDate != null) sql += " AND created_at BETWEEN :start AND :end";
@@ -89,7 +88,7 @@ public class ReportService {
             List<Object[]> resultList = query.getResultList();
 
             Number total = ((Number) entityManager
-                    .createNativeQuery("SELECT COUNT(*) FROM interviews WHERE is_deleted = false")
+                    .createNativeQuery("SELECT COUNT(*) FROM interviews ")
                     .getSingleResult());
 
             List<Map<String, Object>> data = resultList.stream().map(r -> {

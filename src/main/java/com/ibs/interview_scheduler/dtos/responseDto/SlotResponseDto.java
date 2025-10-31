@@ -18,4 +18,5 @@ public class SlotResponseDto {
     private LocalDateTime endTime;
     private String status;
     private String accessStatus;
+    private String panelistName;
 }

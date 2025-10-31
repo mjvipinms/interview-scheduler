@@ -1,9 +1,11 @@
 package com.ibs.interview_scheduler.service;
 
+import com.ibs.interview_scheduler.cache.UserCacheService;
 import com.ibs.interview_scheduler.context.UserContext;
 import com.ibs.interview_scheduler.dtos.requestDto.SlotRequestDto;
 import com.ibs.interview_scheduler.dtos.responseDto.SlotResponseDto;
 import com.ibs.interview_scheduler.dtos.responseDto.SlotSummaryResponseDto;
+import com.ibs.interview_scheduler.dtos.responseDto.UserResponseDTO;
 import com.ibs.interview_scheduler.entity.Slot;
 import com.ibs.interview_scheduler.enums.SlotStatus;
 import com.ibs.interview_scheduler.exception.CustomException;
@@ -15,6 +17,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +26,7 @@ import java.util.List;
 public class SlotService {
 
     private final SlotRepository slotRepository;
+    private final UserCacheService userCacheService;
 
     public SlotResponseDto createSlot(SlotRequestDto request) {
         log.info("Creating slot{}", request);
@@ -43,7 +48,7 @@ public class SlotService {
                     .createdAt(LocalDateTime.now())
                     .updatedAt(LocalDateTime.now())
                     .status(SlotStatus.UNBOOKED.toString()).build();
-            return toResponse(slotRepository.save(slot));
+            return toResponse(slotRepository.save(slot), null);
         } catch (Exception e) {
             log.error("Exception occurred at createSlot, {}", e.getMessage());
             throw new RuntimeException(e);
@@ -52,13 +57,14 @@ public class SlotService {
 
     public List<SlotResponseDto> getAllSlots() {
         log.info("Fetching all slots");
-        return slotRepository.findAll().stream().map(this::toResponse).toList();
+        Map<Integer, String> userList = userCacheService.getUserIdNameMap();
+        return slotRepository.findAll().stream().map(slot -> toResponse(slot,userList)).toList();
     }
 
     public SlotResponseDto getSlotById(Integer slotId) {
         log.info("Fetching slot by id ,{}", slotId);
         Slot slot = slotRepository.findById(slotId).orElseThrow(() -> new RuntimeException("Slot not found"));
-        return toResponse(slot);
+        return toResponse(slot, null);
     }
 
     public SlotResponseDto updateSlot(Integer slotId, SlotRequestDto request) {
@@ -69,9 +75,9 @@ public class SlotService {
             slot.setEndTime(request.getEndTime());
             slot.setUpdatedAt(LocalDateTime.now());
             slot.setUpdatedBy(UserContext.getUserName());
-            return toResponse(slotRepository.save(slot));
+            return toResponse(slotRepository.save(slot), null);
         } catch (RuntimeException e) {
-            log.error("Exception occurred at updateSlot ," + e.getMessage());
+            log.error("Exception occurred at updateSlot ,{}", e.getMessage());
             throw new RuntimeException(e);
         }
     }
@@ -85,13 +91,16 @@ public class SlotService {
         slotRepository.save(slot);
     }
 
-    private SlotResponseDto toResponse(Slot slot) {
+    private SlotResponseDto toResponse(Slot slot , Map<Integer, String> userList ) {
         SlotResponseDto res = new SlotResponseDto();
         res.setSlotId(slot.getSlotId());
         res.setPanelistId(slot.getPanelistId());
         res.setStartTime(slot.getStartTime());
         res.setEndTime(slot.getEndTime());
         res.setStatus(slot.getStatus());
+        if(userList != null){
+            res.setPanelistName(userList.get(slot.getPanelistId()));
+        }
         return res;
     }
 
@@ -103,8 +112,9 @@ public class SlotService {
      */
     public List<SlotResponseDto> getOverLappingSlot(LocalDateTime startTime, LocalDateTime endTime) {
         log.info("Fetching available slots in a time period");
+        Map<Integer, String> userList = userCacheService.getUserIdNameMap();
         List<Slot> slotsList = slotRepository.findAvailablePanelistIdsInSlot(startTime, endTime);
-        return slotsList.stream().map(this::toResponse).toList();
+        return slotsList.stream().map(slot -> toResponse(slot, userList)).toList();
     }
 
     /**
@@ -114,8 +124,9 @@ public class SlotService {
      */
     public List<SlotResponseDto> getAllSlotsByPanelID(Integer panelId) {
         log.info("Fetching all slots for a panel");
+        Map<Integer, String> userList = userCacheService.getUserIdNameMap();
         List<Slot> panelSlot = slotRepository.findActiveSlotsByPanelistId(panelId);
-        return panelSlot.stream().map(this::toResponse).toList();
+        return panelSlot.stream().map(slot -> toResponse(slot, userList)).toList();
     }
 
     /**
@@ -156,19 +167,31 @@ public class SlotService {
 
     /**
      *
-     * @param panelistIds
-     * @param startTime
-     * @param endTime
+     * @param panelistIds list bof panel ids
+     * @param startTime start time
+     * @param endTime end time
      * @return List<SlotResponseDto>
      */
     public List<SlotResponseDto> getSlotsByPanelIdStartTimeEndTime(List<Integer> panelistIds, LocalDateTime startTime, LocalDateTime endTime) {
-       log.info("Fetching slots by panels , start time and end time");
+        log.info("Fetching slots by panels , start time and end time");
         try {
+            Map<Integer, String> userList = userCacheService.getUserIdNameMap();
             List<Slot> slots = slotRepository.findByPanelistIdInAndStartTimeGreaterThanEqualAndEndTimeLessThanEqual(panelistIds, startTime, endTime);
-            return  slots.stream().map(this::toResponse).toList();
+            return slots.stream().map(slot -> toResponse(slot, userList)).toList();
         } catch (Exception e) {
             log.error("Exception occurred in getSlotsByPanelIdStartTimeEndTime,{}", e.getMessage());
             throw new RuntimeException(e);
         }
+    }
+    /**
+     *
+     * @return List<SlotResponseDto>
+     */
+    public List<SlotResponseDto> getAllAvailableSlots() {
+        log.info("Fetching all available slots");
+        Map<Integer, String> userList = userCacheService.getUserIdNameMap();
+        return slotRepository.findAll().stream()
+                .filter(s -> !s.getIsDeleted()).filter(s -> s.getStatus().equals("UNBOOKED"))
+                .map(slot -> toResponse(slot, userList)).toList();
     }
 }

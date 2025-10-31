@@ -131,6 +131,12 @@ public class InterviewService {
         return toResponse(interview, candidateNamesMap);
     }
 
+    /**
+     *
+     * @param interviewId interview id
+     * @param request interview request
+     * @return InterviewResponseDto
+     */
     public InterviewResponseDto updateInterview(Integer interviewId, InterviewRequestDto request) {
         try {
             Interview interview = interviewRepository.findById(interviewId)
@@ -152,6 +158,10 @@ public class InterviewService {
         }
     }
 
+    /**
+     *
+     * @param interviewId interviewId
+     */
     public void deleteInterview(Integer interviewId) {
         log.info("Deleting interview by InterviewId, {}", interviewId);
         Interview interview = interviewRepository.findById(interviewId)
@@ -160,6 +170,8 @@ public class InterviewService {
         interview.setUpdatedAt(LocalDateTime.now());
         interview.setUpdatedBy(UserContext.getUserName());
         interviewRepository.save(interview);
+        log.info("Updating slot status while deleting the interview");
+        slotService.updateSlotStatus(interview.getSlotId(),"UNBOOKED");
     }
     /**
      *
@@ -180,6 +192,7 @@ public class InterviewService {
         res.setStartTime(interview.getStartTime());
         res.setEndTime(interview.getEndTime());
         res.setInterviewStatus(interview.getInterviewStatus());
+        res.setIsDeleted(interview.getIsDeleted());
         if (userNamesMap != null && !userNamesMap.isEmpty()) {
             res.setCandidateName(userNamesMap.get(interview.getCandidateId()));
             String[] str = null;
@@ -190,9 +203,11 @@ public class InterviewService {
                     panelName.add(userNamesMap.get(Integer.valueOf(s)));
                     res.setPanellistNames(panelName);
                 }
+                res.setPanellistIds(Arrays.stream(str).toList());
             } else {
                 panelName.add(userNamesMap.get(Integer.valueOf(interview.getPanelistIds())));
                 res.setPanellistNames(panelName);
+                res.setPanellistIds(Collections.singletonList(interview.getPanelistIds()));
             }
         }
         return res;
@@ -300,5 +315,33 @@ public class InterviewService {
                 .build();
         interviewEventPublisher.publishInterviewCreated(notificationEvent);
 
+    }
+
+    public InterviewResponseDto rescheduleInterview(Integer interviewId, InterviewRequestDto request) {
+        log.info("Rescheduling interview with id {}",interviewId);
+        try {
+            Interview interview = interviewRepository.findById(interviewId)
+                    .orElseThrow(() -> new RuntimeException("Interview not found"));
+            slotService.updateSlotStatus(interview.getSlotId(), "UNBOOKED");
+            interview.setSlotId(request.getSlotId());
+            interview.setPanelistIds(request.getPanelistIds().stream()
+                    .map(String::valueOf)
+                    .collect(Collectors.joining(",")));
+            List<SlotResponseDto> slots = slotService.getSlotsByPanelIdStartTimeEndTime(request.getPanelistIds(),
+                    request.getStartTime(), request.getEndTime());
+            for (SlotResponseDto slotRes : slots) {
+                slotService.updateSlotStatus(slotRes.getSlotId(), "BOOKED");
+                log.info("Updated Slot with ID while rescheduling: {}", request.getSlotId());
+            }
+            interview.setStartTime(request.getStartTime());
+            interview.setEndTime(request.getEndTime());
+            interview.setUpdatedAt(LocalDateTime.now());
+            interview.setUpdatedBy(UserContext.getUserName());
+            createNotification(interview, EventType.INTERVIEWRESCHEDULE);
+            return toResponse(interviewRepository.save(interview), null);
+        } catch (RuntimeException e) {
+            log.error("Exception occurred at rescheduleInterview, {}", e.getMessage());
+            throw new RuntimeException(e);
+        }
     }
 }

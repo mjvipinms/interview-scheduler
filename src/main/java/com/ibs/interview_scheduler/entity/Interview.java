@@ -12,7 +12,9 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+/*
 @Where(clause = "is_deleted = false")
+*/
 public class Interview {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

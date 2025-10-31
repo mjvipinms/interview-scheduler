@@ -58,4 +58,9 @@ public class SlotController {
     public ResponseEntity<List<SlotResponseDto>> getAllSlotsByPanelID(@PathVariable Integer panelId) {
         return ResponseEntity.ok(slotService.getAllSlotsByPanelID(panelId));
     }
+
+    @GetMapping("/available")
+    public ResponseEntity<List<SlotResponseDto>> getAllAvailableSlots() {
+        return ResponseEntity.ok(slotService.getAllAvailableSlots());
+    }
 }

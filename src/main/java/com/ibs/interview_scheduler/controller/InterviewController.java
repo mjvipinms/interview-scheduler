@@ -51,7 +51,7 @@ public class InterviewController {
         return ResponseEntity.ok(interviewService.updateInterview(interviewId, request));
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{interviewId}")
     public void deleteInterview(@PathVariable Integer interviewId) {
         interviewService.deleteInterview(interviewId);
     }
@@ -63,5 +63,14 @@ public class InterviewController {
     @GetMapping("/candidate/{candidateId}")
     public ResponseEntity<List<InterviewResponseDto>> getInterviewsByCandidateId(@PathVariable Integer candidateId) {
         return ResponseEntity.ok(interviewService.getInterviewsByCandidateId(candidateId));
+    }
+    @PutMapping("/reschedule/{interviewId}")
+    public ResponseEntity<InterviewResponseDto> rescheduleInterview(@PathVariable Integer interviewId, @RequestBody InterviewRequestDto request) {
+        if (!isAuthorized(UserContext.getUserRole(), List.of("HR","PANEL"))) {
+            InterviewResponseDto response = new InterviewResponseDto();
+            response.setAccessStatus("User permission denied");
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+        }
+        return ResponseEntity.ok(interviewService.rescheduleInterview(interviewId, request));
     }
 }
