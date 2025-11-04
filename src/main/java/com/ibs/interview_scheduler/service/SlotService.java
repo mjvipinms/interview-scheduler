@@ -30,6 +30,7 @@ public class SlotService {
 
     public SlotResponseDto createSlot(SlotRequestDto request) {
         log.info("Creating slot{}", request);
+
         try {
             if (request.getEndTime().isBefore(request.getStartTime()) || request.getEndTime().equals(request.getStartTime())) {
                 throw new CustomException("Slot end time must be after start time.", HttpStatus.BAD_REQUEST);
@@ -49,16 +50,16 @@ public class SlotService {
                     .updatedAt(LocalDateTime.now())
                     .status(SlotStatus.UNBOOKED.toString()).build();
             return toResponse(slotRepository.save(slot), null);
-        } catch (Exception e) {
-            log.error("Exception occurred at createSlot, {}", e.getMessage());
+        } catch (CustomException e) {
             throw new RuntimeException(e);
         }
+
     }
 
     public List<SlotResponseDto> getAllSlots() {
         log.info("Fetching all slots");
         Map<Integer, String> userList = userCacheService.getUserIdNameMap();
-        return slotRepository.findAll().stream().map(slot -> toResponse(slot,userList)).toList();
+        return slotRepository.findAll().stream().map(slot -> toResponse(slot, userList)).toList();
     }
 
     public SlotResponseDto getSlotById(Integer slotId) {
@@ -91,14 +92,14 @@ public class SlotService {
         slotRepository.save(slot);
     }
 
-    private SlotResponseDto toResponse(Slot slot , Map<Integer, String> userList ) {
+    private SlotResponseDto toResponse(Slot slot, Map<Integer, String> userList) {
         SlotResponseDto res = new SlotResponseDto();
         res.setSlotId(slot.getSlotId());
         res.setPanelistId(slot.getPanelistId());
         res.setStartTime(slot.getStartTime());
         res.setEndTime(slot.getEndTime());
         res.setStatus(slot.getStatus());
-        if(userList != null){
+        if (userList != null) {
             res.setPanelistName(userList.get(slot.getPanelistId()));
         }
         return res;
@@ -168,8 +169,8 @@ public class SlotService {
     /**
      *
      * @param panelistIds list bof panel ids
-     * @param startTime start time
-     * @param endTime end time
+     * @param startTime   start time
+     * @param endTime     end time
      * @return List<SlotResponseDto>
      */
     public List<SlotResponseDto> getSlotsByPanelIdStartTimeEndTime(List<Integer> panelistIds, LocalDateTime startTime, LocalDateTime endTime) {
@@ -183,6 +184,7 @@ public class SlotService {
             throw new RuntimeException(e);
         }
     }
+
     /**
      *
      * @return List<SlotResponseDto>

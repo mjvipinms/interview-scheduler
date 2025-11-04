@@ -20,12 +20,13 @@ import java.util.List;
 public class InterviewController {
 
     private final InterviewService interviewService;
+    static final String ACCESSSTATUSMESSAGE ="User permission denied";
 
     @PostMapping
     public ResponseEntity<InterviewResponseDto> createInterview(@RequestBody InterviewRequestDto request) {
         if (!isAuthorized(UserContext.getUserRole(), List.of("HR"))) {
             InterviewResponseDto response = new InterviewResponseDto();
-            response.setAccessStatus("User permission denied");
+            response.setAccessStatus(ACCESSSTATUSMESSAGE);
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
         }
         return ResponseEntity.ok(interviewService.createInterview(request));
@@ -36,7 +37,7 @@ public class InterviewController {
         return ResponseEntity.ok(interviewService.getAllInterviews());
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{interviewId}")
     public ResponseEntity<InterviewResponseDto> getInterview(@PathVariable Integer interviewId) {
         return ResponseEntity.ok(interviewService.getInterviewById(interviewId));
     }
@@ -45,7 +46,7 @@ public class InterviewController {
     public ResponseEntity<InterviewResponseDto> updateInterview(@PathVariable Integer interviewId, @RequestBody InterviewRequestDto request) {
         if (!isAuthorized(UserContext.getUserRole(), List.of("HR","PANEL"))) {
             InterviewResponseDto response = new InterviewResponseDto();
-            response.setAccessStatus("User permission denied");
+            response.setAccessStatus(ACCESSSTATUSMESSAGE);
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
         }
         return ResponseEntity.ok(interviewService.updateInterview(interviewId, request));
@@ -68,7 +69,7 @@ public class InterviewController {
     public ResponseEntity<InterviewResponseDto> rescheduleInterview(@PathVariable Integer interviewId, @RequestBody InterviewRequestDto request) {
         if (!isAuthorized(UserContext.getUserRole(), List.of("HR","PANEL"))) {
             InterviewResponseDto response = new InterviewResponseDto();
-            response.setAccessStatus("User permission denied");
+            response.setAccessStatus(ACCESSSTATUSMESSAGE);
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
         }
         return ResponseEntity.ok(interviewService.rescheduleInterview(interviewId, request));
