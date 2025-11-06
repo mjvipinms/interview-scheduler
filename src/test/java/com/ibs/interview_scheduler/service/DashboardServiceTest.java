@@ -50,6 +50,7 @@ class DashboardServiceTest {
         interview.setResult(InterviewResult.SELECTED.toString());
         interview.setInterviewType("TECHNICAL");
         interview.setMode("ONLINE");
+        interview.setIsDeleted(false);
 
         SlotResponseDto slot = new SlotResponseDto();
         slot.setPanelistId(2);

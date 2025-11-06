@@ -36,7 +36,6 @@ public class DashboardService {
 
             // Candidates details.
             long totalCandidates = userList.stream().filter(user -> user.getRoleId() == 4).count();
-            List<UserResponseDTO> candidateList = userList.stream().filter(user -> user.getRoleId() == 4).toList();
             List<Integer> candidateIds = userList.stream()
                     .filter(user -> user.getRoleId() == 4).map(UserResponseDTO::getUserId).toList();
             long assignedCount = candidateIds.stream().
@@ -59,7 +58,8 @@ public class DashboardService {
             Map<Integer, String> candidateNameMap = userList.stream()
                     .collect(Collectors.toMap(UserResponseDTO::getUserId, UserResponseDTO::getFullName));
 
-            List<UpcomingInterviewResponseDto> upcoming = interviews.stream().filter(i -> i.getStartTime().
+            List<UpcomingInterviewResponseDto> upcoming = interviews.stream().filter(i ->i.getIsDeleted() ==  false)
+                    .filter(i -> i.getStartTime().
                             isAfter(LocalDateTime.now().minusDays(1)) && i.getStartTime().isBefore(LocalDateTime.now().plusDays(4))).
                     map(i -> new UpcomingInterviewResponseDto(candidateNameMap.get(i.getCandidateId()), i.getInterviewType(),
                             i.getStartTime(), i.getMode())).toList();

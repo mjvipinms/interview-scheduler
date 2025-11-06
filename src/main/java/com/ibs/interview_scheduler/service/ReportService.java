@@ -69,7 +69,7 @@ public class ReportService {
                     .collect(Collectors.toMap(UserResponseDTO::getUserId, UserResponseDTO::getFullName));
 
             String sql = """
-                SELECT interview_id, candidate_id, hr_id, panelist_ids, start_time, end_time, interview_status, created_at
+                SELECT interview_id, candidate_id, hr_id, panelist_ids, start_time, end_time, interview_status, created_at, is_deleted
                 FROM interviews
                 """;
 
@@ -120,6 +120,7 @@ public class ReportService {
                 map.put("endTime", r[5]);
                 map.put("status", r[6]);
                 map.put("createdAt", r[7]);
+                map.put("isDeleted", r[8]);
                 return map;
             }).toList();
 
