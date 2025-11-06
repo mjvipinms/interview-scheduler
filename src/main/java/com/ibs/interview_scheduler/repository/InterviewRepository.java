@@ -40,7 +40,7 @@ public interface InterviewRepository extends JpaRepository<Interview, Integer> {
             "   OR i.panelistIds LIKE CONCAT(:panelId, ',%') " +
             "   OR i.panelistIds LIKE CONCAT('%,', :panelId) " +
             "   OR i.panelistIds = :panelId) " +
-            "AND i.interviewStatus = 'CONFIRMED'")
+            "AND i.interviewStatus = 'CONFIRMED' AND i.isDeleted =false")
     List<Interview> findConfirmedInterviewsByPanelId(@Param("panelId") String panelId);
 
     List<Interview> findInterviewsByCandidateId(Integer candidateId);
