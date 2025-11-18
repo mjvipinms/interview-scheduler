@@ -1,6 +1,8 @@
 package com.ibs.interview_scheduler.context;
 
 public class UserContext {
+    private UserContext() {
+    }
     private static final ThreadLocal<String> userName = new ThreadLocal<>();
     private static final ThreadLocal<String> userRole = new ThreadLocal<>();
 

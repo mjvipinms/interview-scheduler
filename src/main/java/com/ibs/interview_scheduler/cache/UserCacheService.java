@@ -46,7 +46,7 @@ public class UserCacheService {
     public Map<Integer, String> getUserIdNameMap() {
         if (userIdNameMap.isEmpty()) {
             log.info("User map cache is empty, building from getAllUsers()...");
-            updateUserMapCache(getAllUsers());
+            updateUserMapCache(userClient.getAllUsers());
         }
         return userIdNameMap;
     }
